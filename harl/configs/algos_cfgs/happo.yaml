@@ -42,7 +42,7 @@ eval:
 render:
   # whether to use render
   # TODO
-  use_render: True
+  use_render: False
   # number of episodes to render
   render_episodes: 10
 model:
