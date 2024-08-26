@@ -10,7 +10,7 @@ from harl.utils.models_tools import (
 from harl.utils.envs_tools import check
 from harl.models.value_function_models.v_net import VNet
 
-class VCritic:
+class VCritic_MALAWR:
     """V Critic.
     Critic that learns a V-function.
     """

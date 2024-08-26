@@ -2,9 +2,9 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from harl.runners.off_policy_base_runner import OffPolicyBaseRunner
+from harl.runners.malawr_base_runner import MALAWRBaseRunner
 
-class OffPolicyHARunner(OffPolicyBaseRunner):
+class MALAWRRunner(MALAWRBaseRunner):
     """Runner for off-policy HA algorithms."""
 
     def train(self):
@@ -24,7 +24,7 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
             sp_next_obs,  # (n_agents, batch_size, dim)
             sp_next_available_actions,  # (n_agents, batch_size, dim)
             sp_gamma,  # EP: (batch_size, 1), FP: (n_agents * batch_size, 1)
-        ) = data
+        ) = data  # 都用上
 
         # train critic
         self.critic.turn_on_grad()

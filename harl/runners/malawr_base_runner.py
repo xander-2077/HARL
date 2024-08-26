@@ -22,16 +22,17 @@ from harl.common.buffers.off_policy_buffer_ep import OffPolicyBufferEP
 from harl.common.buffers.off_policy_buffer_fp import OffPolicyBufferFP
 
 
-class OffPolicyBaseRunner:
-    """Base runner for off-policy algorithms."""
+class MALAWRBaseRunner:
+    """Base runner for malawr algorithm."""
 
     def __init__(self, args, algo_args, env_args):
-        """Initialize the OffPolicyBaseRunner class.
+        """Initialize the MALAWRBaseRunner class.
         Args:
             args: command-line arguments parsed by argparse. Three keys: algo, env, exp_name.
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
             env_args: arguments related to env, loaded from config file and updated with unparsed command-line arguments.
         """
+        # breakpoint()
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
