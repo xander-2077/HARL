@@ -32,7 +32,7 @@ class OnPolicyCriticBufferEP:
         self.share_obs = np.zeros(
             (self.episode_length + 1, self.n_rollout_threads, *share_obs_shape),
             dtype=np.float32,
-        )
+        )  # (201, 1, 54) for pettingzoo_mpe
 
         # Buffer for rnn states of critic
         self.rnn_states_critic = np.zeros(

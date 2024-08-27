@@ -58,4 +58,8 @@ warm_up():
 3. actor: malawr.py   critic: v_critic_malawr.py
 4. model:
 
+offpolicy看起来不用v function作为critic，用v_critic的只有happo, hatrpo, haa2c, mappo（OnPolicyMARunner/OnPolicyHARunner）
 
+直接用TD(λ)做
+
+AWR的replay buffer：

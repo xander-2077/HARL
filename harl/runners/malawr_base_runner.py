@@ -17,9 +17,12 @@ from harl.utils.envs_tools import (
 from harl.utils.models_tools import init_device
 from harl.utils.configs_tools import init_dir, save_config, get_task_name
 from harl.algorithms.actors import ALGO_REGISTRY
-from harl.algorithms.critics import CRITIC_REGISTRY
-from harl.common.buffers.off_policy_buffer_ep import OffPolicyBufferEP
-from harl.common.buffers.off_policy_buffer_fp import OffPolicyBufferFP
+# from harl.algorithms.critics import CRITIC_REGISTRY
+# from harl.common.buffers.off_policy_buffer_ep import OffPolicyBufferEP
+# from harl.common.buffers.off_policy_buffer_fp import OffPolicyBufferFP
+from harl.algorithms.critics.v_critic_malawr import VCritic_MALAWR
+from harl.common.buffers.on_policy_critic_buffer_ep import OnPolicyCriticBufferEP
+from harl.common.buffers.on_policy_critic_buffer_fp import OnPolicyCriticBufferFP
 
 
 class MALAWRBaseRunner:
@@ -32,7 +35,6 @@ class MALAWRBaseRunner:
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
             env_args: arguments related to env, loaded from config file and updated with unparsed command-line arguments.
         """
-        # breakpoint()
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
@@ -42,8 +44,7 @@ class MALAWRBaseRunner:
         else:
             self.policy_freq = 1
 
-        self.state_type = env_args.get("state_type", "EP")
-        self.share_param = algo_args["algo"]["share_param"]
+        self.state_type = env_args.get("state_type", "EP")   # 仅在smac环境中使用FP
         self.fixed_order = algo_args["algo"]["fixed_order"]
 
         set_seed(algo_args["seed"])
@@ -64,7 +65,6 @@ class MALAWRBaseRunner:
             self.log_file = open(
                 os.path.join(self.run_dir, "progress.txt"), "w", encoding="utf-8"
             )
-
         setproctitle.setproctitle(
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
         )
@@ -96,71 +96,76 @@ class MALAWRBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-        self.agent_deaths = np.zeros(
+        self.agent_deaths = np.zeros(    
             (self.algo_args["train"]["n_rollout_threads"], self.num_agents, 1)
-        )
+        )   # 用于记录agent是否死亡, on-policy中不存在
 
+        # 不知道为什么要这么写
         self.action_spaces = self.envs.action_space
         for agent_id in range(self.num_agents):
             self.action_spaces[agent_id].seed(algo_args["seed"]["seed"] + agent_id + 1)
 
-        print("share_observation_space: ", self.envs.share_observation_space)   # ?
+        print("share_observation_space: ", self.envs.share_observation_space)
         print("observation_space: ", self.envs.observation_space)
         print("action_space: ", self.envs.action_space)
 
-        if self.share_param:
-            self.actor = []
+        # actor
+        self.actor = []
+        for agent_id in range(self.num_agents):
             agent = ALGO_REGISTRY[args["algo"]](
                 {**algo_args["model"], **algo_args["algo"]},
-                self.envs.observation_space[0],
-                self.envs.action_space[0],
+                self.envs.observation_space[agent_id],
+                self.envs.action_space[agent_id],
                 device=self.device,
             )
             self.actor.append(agent)
-            for agent_id in range(1, self.num_agents):
-                assert (
-                    self.envs.observation_space[agent_id]
-                    == self.envs.observation_space[0]
-                ), "Agents have heterogeneous observation spaces, parameter sharing is not valid."
-                assert (
-                    self.envs.action_space[agent_id] == self.envs.action_space[0]
-                ), "Agents have heterogeneous action spaces, parameter sharing is not valid."
-                self.actor.append(self.actor[0])
-        else:
-            self.actor = []
-            for agent_id in range(self.num_agents):
-                agent = ALGO_REGISTRY[args["algo"]](
-                    {**algo_args["model"], **algo_args["algo"]},
-                    self.envs.observation_space[agent_id],
-                    self.envs.action_space[agent_id],
-                    device=self.device,
-                )
-                self.actor.append(agent)
 
+        # critic
         if not self.algo_args["render"]["use_render"]:
-            self.critic = CRITIC_REGISTRY[args["algo"]](
+            # self.critic = CRITIC_REGISTRY[args["algo"]](
+            #     {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
+            #     self.envs.share_observation_space[0],
+            #     self.envs.action_space,
+            #     self.num_agents,
+            #     self.state_type,
+            #     device=self.device,
+            # )
+            # if self.state_type == "EP":
+            #     self.buffer = OffPolicyBufferEP(
+            #         {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
+            #         self.envs.share_observation_space[0],
+            #         self.num_agents,
+            #         self.envs.observation_space,
+            #         self.envs.action_space,
+            #     )
+            # elif self.state_type == "FP":
+            #     self.buffer = OffPolicyBufferFP(
+            #         {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
+            #         self.envs.share_observation_space[0],
+            #         self.num_agents,
+            #         self.envs.observation_space,
+            #         self.envs.action_space,
+            #     )
+            share_observation_space = self.envs.share_observation_space[0]
+            self.critic = VCritic_MALAWR(
                 {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
-                self.envs.share_observation_space[0],
-                self.envs.action_space,
-                self.num_agents,
-                self.state_type,
+                share_observation_space,
                 device=self.device,
             )
             if self.state_type == "EP":
-                self.buffer = OffPolicyBufferEP(
+                # EP stands for Environment Provided, as phrased by MAPPO paper.
+                # In EP, the global states for all agents are the same.
+                self.buffer = OnPolicyCriticBufferEP(
                     {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
-                    self.envs.share_observation_space[0],
-                    self.num_agents,
-                    self.envs.observation_space,
-                    self.envs.action_space,
+                    share_observation_space
                 )
             elif self.state_type == "FP":
-                self.buffer = OffPolicyBufferFP(
+                # FP stands for Feature Pruned, as phrased by MAPPO paper.
+                # In FP, the global states for all agents are different, and thus needs the dimension of the number of agents.
+                self.buffer = OnPolicyCriticBufferFP(
                     {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
-                    self.envs.share_observation_space[0],
+                    share_observation_space,
                     self.num_agents,
-                    self.envs.observation_space,
-                    self.envs.action_space,
                 )
             else:
                 raise NotImplementedError
@@ -177,40 +182,7 @@ class MALAWRBaseRunner:
             self.restore()
 
         self.total_it = 0  # total iteration
-        
-        # for entropy
-        if (
-            "auto_alpha" in self.algo_args["algo"].keys()
-            and self.algo_args["algo"]["auto_alpha"]
-        ):
-            self.target_entropy = []
-            for agent_id in range(self.num_agents):
-                if (
-                    self.envs.action_space[agent_id].__class__.__name__ == "Box"
-                ):  # Differential entropy can be negative
-                    self.target_entropy.append(
-                        -np.prod(self.envs.action_space[agent_id].shape)
-                    )
-                else:  # Discrete entropy is always positive. Thus we set the max possible entropy as the target entropy
-                    self.target_entropy.append(
-                        -0.98
-                        * np.log(1.0 / np.prod(self.envs.action_space[agent_id].shape))
-                    )
-            self.log_alpha = []
-            self.alpha_optimizer = []
-            self.alpha = []
-            for agent_id in range(self.num_agents):
-                _log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
-                self.log_alpha.append(_log_alpha)
-                self.alpha_optimizer.append(
-                    torch.optim.Adam(
-                        [_log_alpha], lr=self.algo_args["algo"]["alpha_lr"]
-                    )
-                )
-                self.alpha.append(torch.exp(_log_alpha.detach()))
-        elif "alpha" in self.algo_args["algo"].keys():
-            self.alpha = [self.algo_args["algo"]["alpha"]] * self.num_agents
-
+      
     def run(self):
         """Run the training (or rendering) pipeline."""
         if self.algo_args["render"]["use_render"]:  # render, not train

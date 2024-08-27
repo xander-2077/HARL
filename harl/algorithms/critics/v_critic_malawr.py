@@ -39,7 +39,7 @@ class VCritic_MALAWR:
         self.opti_eps = args["opti_eps"]
         self.weight_decay = args["weight_decay"]
 
-        self.share_obs_space = cent_obs_space
+        self.share_obs_space = cent_obs_space  # self.envs.share_observation_space[0]
 
         self.critic = VNet(args, self.share_obs_space, self.device)
 
