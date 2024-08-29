@@ -63,7 +63,19 @@ class MALAWRRunner(MALAWRBaseRunner):
         # self.critic.turn_off_grad()
         sp_valid_transition = torch.tensor(sp_valid_transition, device=self.device)
 
+
         # train actors
+        # ------------------------------------------------------------------------
+        # initialize M^{i_1}(s)
+        # M = 
+
+        permutation = np.random.permutation(self.num_agents)
+        for agent_id in range(self.num_agents):
+            self.actor[agent_id].turn_on_grad()
+            
+            self.actor[agent_id].turn_off_grad()
+        # ------------------------------------------------------------------------
+
         if self.total_it % self.policy_freq == 0:
             actions = []
             with torch.no_grad():

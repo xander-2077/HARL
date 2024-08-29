@@ -286,50 +286,66 @@ class MALAWRBaseRunner:
                 self.save()
 
     def warmup(self):
-        """Warmup the replay buffer with random actions"""
-        warmup_steps = (
-            self.algo_args["train"]["warmup_steps"]
-            // self.algo_args["train"]["n_rollout_threads"]
-        )
-        # obs: (n_threads, n_agents, dim)
-        # share_obs: (n_threads, n_agents, dim)
-        # available_actions: (threads, n_agents, dim)
+        """Warm up the replay buffer."""
+        # reset env
         obs, share_obs, available_actions = self.envs.reset()
-        for _ in range(warmup_steps):
-            # action: (n_threads, n_agents, dim)
-            actions = self.sample_actions(available_actions)
-            (
-                new_obs,
-                new_share_obs,
-                rewards,
-                dones,
-                infos,
-                new_available_actions,
-            ) = self.envs.step(actions)
-            next_obs = new_obs.copy()
-            next_share_obs = new_share_obs.copy()
-            next_available_actions = new_available_actions.copy()
-            data = (
-                share_obs,
-                obs.transpose(1, 0, 2),
-                actions.transpose(1, 0, 2),
-                available_actions.transpose(1, 0, 2)
-                if len(np.array(available_actions).shape) == 3
-                else None,
-                rewards,
-                dones,
-                infos,
-                next_share_obs,
-                next_obs,
-                next_available_actions.transpose(1, 0, 2)
-                if len(np.array(available_actions).shape) == 3
-                else None,
-            )
-            self.insert(data)
-            obs = new_obs
-            share_obs = new_share_obs
-            available_actions = new_available_actions
-        return obs, share_obs, available_actions
+        # replay buffer
+        # for agent_id in range(self.num_agents):
+        #     self.actor_buffer[agent_id].obs[0] = obs[:, agent_id].copy()
+        #     if self.actor_buffer[agent_id].available_actions is not None:
+        #         self.actor_buffer[agent_id].available_actions[0] = available_actions[
+        #             :, agent_id
+        #         ].copy()
+        if self.state_type == "EP":
+            self.buffer.share_obs[0] = share_obs[:, 0].copy()
+        elif self.state_type == "FP":
+            self.buffer.share_obs[0] = share_obs.copy()
+
+    # def warmup(self):
+    #     """Warmup the replay buffer with random actions"""
+    #     warmup_steps = (
+    #         self.algo_args["train"]["warmup_steps"]
+    #         // self.algo_args["train"]["n_rollout_threads"]
+    #     )
+    #     # obs: (n_threads, n_agents, dim)
+    #     # share_obs: (n_threads, n_agents, dim)
+    #     # available_actions: (threads, n_agents, dim)
+    #     obs, share_obs, available_actions = self.envs.reset()
+    #     for _ in range(warmup_steps):
+    #         # action: (n_threads, n_agents, dim)
+    #         actions = self.sample_actions(available_actions)
+    #         (
+    #             new_obs,
+    #             new_share_obs,
+    #             rewards,
+    #             dones,
+    #             infos,
+    #             new_available_actions,
+    #         ) = self.envs.step(actions)
+    #         next_obs = new_obs.copy()
+    #         next_share_obs = new_share_obs.copy()
+    #         next_available_actions = new_available_actions.copy()
+    #         data = (
+    #             share_obs,
+    #             obs.transpose(1, 0, 2),
+    #             actions.transpose(1, 0, 2),
+    #             available_actions.transpose(1, 0, 2)
+    #             if len(np.array(available_actions).shape) == 3
+    #             else None,
+    #             rewards,
+    #             dones,
+    #             infos,
+    #             next_share_obs,
+    #             next_obs,
+    #             next_available_actions.transpose(1, 0, 2)
+    #             if len(np.array(available_actions).shape) == 3
+    #             else None,
+    #         )
+    #         self.insert(data)
+    #         obs = new_obs
+    #         share_obs = new_share_obs
+    #         available_actions = new_available_actions
+    #     return obs, share_obs, available_actions
 
     def insert(self, data):
         (
