@@ -52,7 +52,7 @@ def main():
         default="",
         help="If set, load existing experiment config file instead of reading from yaml config file.",
     )
-    args, unparsed_args = parser.parse_known_args()
+    args, unparsed_args = parser.parse_known_args()  # unparsed_args: 未知参数
 
     def process(arg):
         try:
