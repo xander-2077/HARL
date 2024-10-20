@@ -4,7 +4,6 @@ import numpy as np
 import torch.nn.functional as F
 from harl.runners.off_policy_base_runner import OffPolicyBaseRunner
 
-
 class OffPolicyHARunner(OffPolicyBaseRunner):
     """Runner for off-policy HA algorithms."""
 
@@ -26,6 +25,7 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
             sp_next_available_actions,  # (n_agents, batch_size, dim)
             sp_gamma,  # EP: (batch_size, 1), FP: (n_agents * batch_size, 1)
         ) = data
+
         # train critic
         self.critic.turn_on_grad()
         if self.args["algo"] == "hasac":
@@ -73,8 +73,9 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
             )
         self.critic.turn_off_grad()
         sp_valid_transition = torch.tensor(sp_valid_transition, device=self.device)
+
+        # train actors, actor更新的频率较critic更慢
         if self.total_it % self.policy_freq == 0:
-            # train actors
             if self.args["algo"] == "hasac":
                 actions = []
                 logp_actions = []

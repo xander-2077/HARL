@@ -10,7 +10,7 @@ from harl.utils.models_tools import (
 from harl.utils.envs_tools import check
 from harl.models.value_function_models.v_net import VNet
 
-class VCritic:
+class VCritic_MALAWR:
     """V Critic.
     Critic that learns a V-function.
     """
@@ -39,7 +39,7 @@ class VCritic:
         self.opti_eps = args["opti_eps"]
         self.weight_decay = args["weight_decay"]
 
-        self.share_obs_space = cent_obs_space
+        self.share_obs_space = cent_obs_space  # self.envs.share_observation_space[0]
 
         self.critic = VNet(args, self.share_obs_space, self.device)
 
